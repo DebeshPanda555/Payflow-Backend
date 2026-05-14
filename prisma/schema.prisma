@@ -1,0 +1,123 @@
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id           String        @id @default(uuid())
+  email        String        @unique
+  password     String
+  name         String
+  avatar       String?
+  role         Role          @default(USER)
+  wallets      Wallet[]
+  cards        Card[]
+  transactions Transaction[] @relation("UserTransactions")
+  autopays     Autopay[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@index([email])
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+model Wallet {
+  id           String        @id @default(uuid())
+  userId       String
+  user         User          @relation(fields: [userId], references: [id])
+  balance      Float         @default(0)
+  currency     String        @default("USD")
+  transactions Transaction[] @relation("WalletTransactions")
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@index([userId])
+}
+
+model Transaction {
+  id          String   @id @default(uuid())
+  walletId    String
+  wallet      Wallet   @relation("WalletTransactions", fields: [walletId], references: [id])
+  userId      String
+  user        User     @relation("UserTransactions", fields: [userId], references: [id])
+  amount      Float
+  type        TxType
+  category    String?
+  description String?
+  status      TxStatus @default(PENDING)
+  recipientId String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
+  @@index([walletId])
+}
+
+enum TxType {
+  CREDIT
+  DEBIT
+}
+
+enum TxStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
+model Card {
+  id            String     @id @default(uuid())
+  userId        String
+  user          User       @relation(fields: [userId], references: [id])
+  cardNumber    String     @unique
+  expiry        String
+  cvv           String
+  spendingLimit Float?
+  status        CardStatus @default(ACTIVE)
+  type          CardType   @default(VIRTUAL)
+  fundingType   String     @default("DEBIT") // e.g. CREDIT, DEBIT
+  accountType   String     @default("CHECKING") // e.g. CHECKING, SAVINGS
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  @@index([userId])
+}
+
+enum CardStatus {
+  ACTIVE
+  FROZEN
+  INACTIVE
+}
+
+enum CardType {
+  VIRTUAL
+  PHYSICAL
+}
+
+model Autopay {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  recipientId String
+  amount      Float
+  frequency   String   // e.g., 'DAILY', 'WEEKLY', 'MONTHLY'
+  nextRunAt   DateTime
+  status      AutopayStatus @default(ACTIVE)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
+}
+
+enum AutopayStatus {
+  ACTIVE
+  PAUSED
+  CANCELLED
+}
+
